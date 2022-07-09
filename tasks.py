@@ -1,9 +1,9 @@
 import os
 import json
 import sys
-from tracemalloc import start
+import readline
 import emoji
-import sys, tempfile, os
+import sys, tempfile
 from subprocess import call
 
 
