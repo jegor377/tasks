@@ -575,6 +575,7 @@ def do_cmd(cmd, params, config):
         print('edit id - Edit task name')
         print(emoji.emojize('up id - Move task up :up_arrow:'))
         print(emoji.emojize('down id - Move task down :down_arrow:'))
+        print('froot [id1] [id2] [id3] ... - The same as `in` but you can specify whole path')
 
         print('\n[id] - optional with braces. Without the number is required.')
 
