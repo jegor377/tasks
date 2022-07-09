@@ -533,6 +533,9 @@ def do_cmd(cmd, params, config):
         print('pull id - Pulls task from this task to outer task')
         print('push id1 id2 - Pushes task with id1 from current task to task with id2')
         print('todo - Print first task todo (TODO or IN PROGRESS state)')
+        print('edit id - Edit task name')
+        print(emoji.emojize('up id - Move task up :up_arrow:'))
+        print(emoji.emojize('down id - Move task down :down_arrow:'))
 
         print('\n[id] - optional with braces. Without the number is required.')
 
