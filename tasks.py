@@ -396,6 +396,31 @@ def push(params, config):
     start_fixing_ancestors_state(config)
 
 
+def todo():
+    todo_id = -1
+    id_history = [0]
+    history = [read_task(0)]
+    names_history = ['root']
+    while history:
+        task = history.pop()
+        if not task['tasks']:
+            if task['state'] != DONE_STATE:
+                todo_id = id_history[-1]
+            break
+        for subtask_id in task['tasks']:
+            subtask = read_task(subtask_id)
+            if subtask['state'] == TODO_STATE or subtask['state'] == IN_PROGRESS_STATE:
+                id_history.append(subtask_id)
+                history.append(subtask)
+                names_history.append(subtask['name'])
+                break
+    
+    if todo_id != -1:
+        todo_path = '/'.join([name for name in names_history])
+        print(todo_path)
+    else:
+        print(emoji.emojize('There is no task todo... :grinning_face:'))
+
 
 def do_cmd(cmd, params, config):
     if cmd == 'see':
@@ -431,6 +456,8 @@ def do_cmd(cmd, params, config):
     elif cmd == 'push':
         push(params, config)
         see([], config)
+    elif cmd == 'todo':
+        todo()
     else:
         print(emoji.emojize('Author: Igor Santarek :Poland:'))
         print('\nAvailable commands:')
@@ -447,6 +474,7 @@ def do_cmd(cmd, params, config):
         print('info [id] - Read description for task')
         print('pull id - Pulls task from this task to outer task')
         print('push id1 id2 - Pushes task with id1 from current task to task with id2')
+        print('todo - Print first task todo (TODO or IN PROGRESS state)')
 
         print('\n[id] - optional with braces. Without the number is required.')
 
