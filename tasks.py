@@ -1,6 +1,7 @@
 import os
 import json
 import sys
+from tracemalloc import start
 import emoji
 import sys, tempfile, os
 from subprocess import call
@@ -131,6 +132,9 @@ def go_in(params, config):
         perror(error_msg)
         return
     task_id = id_from(params)
+    if not task_exists(task_id):
+        perror(f'Task {task_id} does not exist!')
+        return
     
     task = read_task(task_id)
     config['current'] = task
@@ -157,7 +161,7 @@ def new_task(params, config):
     config['current']['tasks'].append(task_id)
     write_task(task_id, task)
     write_task(current(config), config['current'])
-    fix_ancestors_state(len(config['history']) - 1)
+    start_fixing_ancestors_state(config)
 
 
 def rm_task(params, config):
@@ -168,6 +172,9 @@ def rm_task(params, config):
     task_id = id_from(params)
     if task_id == 0:
         perror('Cannot remove root task!')
+        return
+    if not task_exists(task_id):
+        perror(f'Task {task_id} does not exist!')
         return
     
     is_sure = input('Are you sure (Y/N)? ')
@@ -188,7 +195,7 @@ def rm_subtask(subtask_id, parent_id):
     os.remove(get_task_path(subtask_id))
 
 
-def set_task_state(task_id, state):
+def set_task_state(task_id, state, config):
     task = read_task(task_id)
 
     if task['tasks']:
@@ -197,14 +204,14 @@ def set_task_state(task_id, state):
 
     task['state'] = state
     write_task(task_id, task)
-    start_fixing_ancestors_state()
+    start_fixing_ancestors_state(config)
 
 
-def start_fixing_ancestors_state():
-    fix_ancestors_state(len(config['history']) - 1)
+def start_fixing_ancestors_state(config):
+    fix_ancestors_state(len(config['history']) - 1, config)
 
 
-def fix_ancestors_state(history_id = None):
+def fix_ancestors_state(history_id, config):
     if history_id >= 0:
         task_id = config['history'][history_id]
         curr_state = DONE_STATE
@@ -215,9 +222,11 @@ def fix_ancestors_state(history_id = None):
                 curr_state = IN_PROGRESS_STATE
             elif subtask['state'] == TODO_STATE and curr_state != IN_PROGRESS_STATE:
                 curr_state = TODO_STATE
+            elif subtask['state'] == DONE_STATE and curr_state != DONE_STATE:
+                curr_state = IN_PROGRESS_STATE
         task['state'] = curr_state
         write_task(task_id, task)
-        fix_ancestors_state(history_id - 1)
+        fix_ancestors_state(history_id - 1, config)
 
 
 def set_in_progr(params, config):
@@ -226,8 +235,11 @@ def set_in_progr(params, config):
         perror(error_msg)
         return
     task_id = id_from(params)
+    if not task_exists(task_id):
+        perror(f'Task {task_id} does not exist!')
+        return
     
-    set_task_state(task_id, IN_PROGRESS_STATE)
+    set_task_state(task_id, IN_PROGRESS_STATE, config)
 
 
 def set_done(params, config):
@@ -236,8 +248,11 @@ def set_done(params, config):
         perror(error_msg)
         return
     task_id = id_from(params)
+    if not task_exists(task_id):
+        perror(f'Task {task_id} does not exist!')
+        return
     
-    set_task_state(task_id, DONE_STATE)
+    set_task_state(task_id, DONE_STATE, config)
 
 
 def reset(params, config):
@@ -245,12 +260,15 @@ def reset(params, config):
     if error_msg is not None:
         perror(error_msg)
         return
+    task_id = id_from(params)
+    if not task_exists(task_id):
+        perror(f'Task {task_id} does not exist!')
+        return
 
     is_sure = input('Are you sure (Y/N)? ')
     if is_sure.lower() == 'y':
-        task_id = id_from(params)
         reset_task(task_id)
-        start_fixing_ancestors_state()
+        start_fixing_ancestors_state(config)
 
 
 def reset_task(task_id):
@@ -269,6 +287,9 @@ def descr(params, config):
         else:
             perror('Id parameter is wrong!')
             return
+    if not task_exists(task_id):
+        perror(f'Task {task_id} does not exist!')
+        return
     task = read_task(task_id)
     with tempfile.NamedTemporaryFile(suffix=".tmp") as tf:
         tf.write(task['descr'].encode('utf-8') if 'descr' in task else b'')
@@ -291,9 +312,88 @@ def info(params, config):
         else:
             perror('Id parameter is wrong!')
             return
+    if not task_exists(task_id):
+        perror(f'Task {task_id} does not exist!')
+        return
     task = read_task(task_id)
+
     if 'descr' in task:
         print(task['descr'])
+
+
+def pull(params, config):
+    curr = current(config)
+    if curr == 0:
+        perror("Cannot pull from root task!")
+        return
+
+    error_msg = get_id_error_msg(params, config)
+    if error_msg is not None:
+        perror(error_msg)
+        return
+    task_id = id_from(params)
+
+    if not task_exists(task_id):
+        perror(f'Task {task_id} does not exist!')
+        return
+    
+    parent = read_task(curr)
+
+    grand_parent_id = config['history'][-2]
+    grand_parent = read_task(config['history'][-2])
+
+    parent['tasks'].remove(task_id)
+    grand_parent['tasks'].append(task_id)
+
+    write_task(curr, parent)
+    write_task(grand_parent_id, grand_parent)
+
+    start_fixing_ancestors_state(config)
+
+
+def are_params_ids(params):
+    for param in params:
+        if not param.isnumeric():
+            return False
+    return True
+
+
+def push(params, config):
+    if len(params) != 2:
+        perror('Wrong number of parameters!')
+        return
+    if not are_params_ids(params):
+        perror('Params are not ids!')
+        return
+    
+    curr = current(config)
+    parent = read_task(curr)
+
+    task1_id = int(params[0])
+    task2_id = int(params[1])
+
+    if task1_id not in parent['tasks']:
+        perror(f'Task {task1_id} is not a child of current task!')
+        return
+    if task2_id not in parent['tasks']:
+        perror(f'Task {task2_id} is not a child of current task!')
+        return
+    if not task_exists(task1_id):
+        perror(f'Task {task1_id} does not exist!')
+        return
+    if not task_exists(task2_id):
+        perror(f'Task {task2_id} does not exist!')
+        return
+
+    parent['tasks'].remove(task1_id)
+
+    dest = read_task(task2_id)
+    dest['tasks'].append(task1_id)
+
+    write_task(curr, parent)
+    write_task(task2_id, dest)
+    start_fixing_ancestors_state(config)
+
 
 
 def do_cmd(cmd, params, config):
@@ -324,6 +424,12 @@ def do_cmd(cmd, params, config):
         descr(params, config)
     elif cmd == 'info':
         info(params, config)
+    elif cmd == 'pull':
+        pull(params, config)
+        see([], config)
+    elif cmd == 'push':
+        push(params, config)
+        see([], config)
     else:
         print(emoji.emojize('Author: Igor Santarek :Poland:'))
         print('\nAvailable commands:')
@@ -337,9 +443,11 @@ def do_cmd(cmd, params, config):
         print(emoji.emojize(f'reset num - Reset task and its children state to TODO {TODO_STATE_SYMBOL}'))
         print('rm num - Remove task')
         print('descr [num] - Write description for task')
-        print('info [num] - Read description for task\n')
+        print('info [num] - Read description for task')
+        print('pull id - Pulls task from this task to outer task')
+        print('push id1 id2 - Pushes task with id1 from current task to task with id2')
 
-        print('[num] - optional with braces. Without the number is required.')
+        print('\n[num] - optional with braces. Without the number is required.')
 
 if __name__ == '__main__':
     if len(sys.argv) == 2 and sys.argv[1] == 'init':
