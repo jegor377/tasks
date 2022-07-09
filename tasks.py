@@ -180,6 +180,7 @@ def rm_task(params, config):
     is_sure = input('Are you sure (Y/N)? ')
     if is_sure.lower() == 'y':
         rm_subtask(task_id, current(config))
+        config['current']['tasks'].remove(task_id)
 
 
 def rm_subtask(subtask_id, parent_id):
