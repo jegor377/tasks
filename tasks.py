@@ -63,6 +63,12 @@ def init():
     write_task(0, empty_task('root'))
 
 
+def init_config(config):
+    config['current'] = read_task(0)
+    config['history'] = [0]
+    config['name_history'] = ['root']
+
+
 def available_id():
     ids = [int(os.path.basename(id_name).split('.')[0]) for id_name in os.listdir(TASKS_DIR)]
     ids.sort()
@@ -421,8 +427,10 @@ def todo():
     
     if todo_id != -1:
         todo_path = '/'.join([name for name in names_history])
+        id_path = ' '.join([str(id) for id in id_history])
         todo_task = read_task(todo_id)
         print(todo_path)
+        print(id_path)
         print_info(todo_task, '---')
     else:
         print(emoji.emojize('There is no task todo... :grinning_face:'))
@@ -478,6 +486,27 @@ def move_down(params, config):
     write_task(current(config), config['current'])
 
 
+def from_root(params, config):
+    init_config(config)
+    if are_params_ids(params):
+        for id in params:
+            task_id = int(id)
+            if task_id == 0:
+                continue
+            if not task_exists(task_id):
+                perror(f'Task {task_id} does not exist!')
+                return
+            if task_id not in config['current']['tasks']:
+                perror(f'Task {task_id} is not a child of current task!')
+                return
+            task = read_task(task_id)
+            config['current'] = task
+            config['history'].append(task_id)
+            config['name_history'].append(task['name'])
+    else:
+        perror('Params are not ids!')
+
+
 def do_cmd(cmd, params, config):
     if cmd == 'see':
         see(params, config)
@@ -523,6 +552,9 @@ def do_cmd(cmd, params, config):
     elif cmd == 'down':
         move_down(params, config)
         see([], config)
+    elif cmd == 'froot':
+        from_root(params, config)
+        see([], config)
     else:
         print(emoji.emojize('Author: Igor Santarek :Poland:'))
         print('\nAvailable commands:')
@@ -552,11 +584,8 @@ if __name__ == '__main__':
     if not is_initialized():
         err_die('Not initialized!\nTry: tasks init')
 
-    config = {
-        'current': read_task(0),
-        'history': [0],
-        'name_history': ['root']
-    }
+    config = {}
+    init_config(config)
 
     see([], config)
     
