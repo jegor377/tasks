@@ -317,9 +317,14 @@ def info(params, config):
         perror(f'Task {task_id} does not exist!')
         return
     task = read_task(task_id)
+    print_info(task)
 
+
+def print_info(task, divider=None):
     if 'descr' in task:
-        print(task['descr'])
+        if divider is not None:
+            print(divider)
+        print(emoji.emojize(task['descr']))
 
 
 def pull(params, config):
@@ -416,7 +421,9 @@ def todo():
     
     if todo_id != -1:
         todo_path = '/'.join([name for name in names_history])
+        todo_task = read_task(todo_id)
         print(todo_path)
+        print_info(todo_task, '---')
     else:
         print(emoji.emojize('There is no task todo... :grinning_face:'))
 
