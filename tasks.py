@@ -338,7 +338,7 @@ def pull(params, config):
         perror(f'Task {task_id} does not exist!')
         return
     
-    parent = read_task(curr)
+    parent = config['current']
 
     grand_parent_id = config['history'][-2]
     grand_parent = read_task(config['history'][-2])
@@ -367,8 +367,7 @@ def push(params, config):
         perror('Params are not ids!')
         return
     
-    curr = current(config)
-    parent = read_task(curr)
+    parent = config['current']
 
     task1_id = int(params[0])
     task2_id = int(params[1])
@@ -422,6 +421,56 @@ def todo():
         print(emoji.emojize('There is no task todo... :grinning_face:'))
 
 
+def edit(params, config):
+    if not params:
+        perror('Missing id and new name parameters!')
+        return
+    if len(params) == 1:
+        perror('Missing new name parameter!')
+        return
+    if not params[0].isnumeric():
+        perror(f'{params[0]} is not and id!')
+        return
+    task_id = int(params[0])
+    if not task_exists(task_id):
+        perror(f'Task {task_id} does not exist!')
+        return
+    if task_id not in config['current']['tasks']:
+        perror(f'Task {task_id} is not a child of current task!')
+        return
+    task = read_task(task_id)
+    task['name'] = ' '.join(params[1:])
+    write_task(task_id, task)
+
+
+def move_up(params, config):
+    error_msg = get_id_error_msg(params, config)
+    if error_msg is not None:
+        perror(error_msg)
+        return
+    task_id = id_from(params)
+
+    curr_index = config['current']['tasks'].index(task_id)
+    new_index = max(0, curr_index - 1)
+
+    config['current']['tasks'][curr_index], config['current']['tasks'][new_index] = config['current']['tasks'][new_index], config['current']['tasks'][curr_index]
+    write_task(current(config), config['current'])
+
+
+def move_down(params, config):
+    error_msg = get_id_error_msg(params, config)
+    if error_msg is not None:
+        perror(error_msg)
+        return
+    task_id = id_from(params)
+
+    curr_index = config['current']['tasks'].index(task_id)
+    new_index = min(len(config['current']['tasks']) - 1, curr_index + 1)
+
+    config['current']['tasks'][curr_index], config['current']['tasks'][new_index] = config['current']['tasks'][new_index], config['current']['tasks'][curr_index]
+    write_task(current(config), config['current'])
+
+
 def do_cmd(cmd, params, config):
     if cmd == 'see':
         see(params, config)
@@ -458,6 +507,15 @@ def do_cmd(cmd, params, config):
         see([], config)
     elif cmd == 'todo':
         todo()
+    elif cmd == 'edit':
+        edit(params, config)
+        see([], config)
+    elif cmd == 'up':
+        move_up(params, config)
+        see([], config)
+    elif cmd == 'down':
+        move_down(params, config)
+        see([], config)
     else:
         print(emoji.emojize('Author: Igor Santarek :Poland:'))
         print('\nAvailable commands:')
