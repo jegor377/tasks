@@ -430,7 +430,7 @@ def todo():
         id_path = ' '.join([str(id) for id in id_history])
         todo_task = read_task(todo_id)
         print(todo_path)
-        print(id_path)
+        print(f'ids path: {id_path}')
         print_info(todo_task, '---')
     else:
         print(emoji.emojize('There is no task todo... :grinning_face:'))
