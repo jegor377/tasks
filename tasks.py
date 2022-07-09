@@ -453,7 +453,7 @@ if __name__ == '__main__':
     if len(sys.argv) == 2 and sys.argv[1] == 'init':
         init()
     if not is_initialized():
-        err_die('Not initialized!')
+        err_die('Not initialized!\nTry: tasks init')
 
     config = {
         'current': read_task(0),
