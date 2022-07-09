@@ -11,6 +11,12 @@ Little script that can be used to create recursive todo list.
 sudo apt-get install libncurses-dev
 ```
 
+### Install requirements
+
+```
+pip install -r requirements.txt
+```
+
 ### Add to .bashrc
 
 You can install this app by adding it as alias to .bashrc:
