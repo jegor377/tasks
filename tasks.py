@@ -380,6 +380,7 @@ def push(params, config):
 
     task1_id = int(params[0])
     task2_id = int(params[1])
+    
 
     if task1_id not in config['current']['tasks']:
         perror(f'Task {task1_id} is not a child of current task!')
