@@ -377,16 +377,14 @@ def push(params, config):
     if not are_params_ids(params):
         perror('Params are not ids!')
         return
-    
-    parent = config['current']
 
     task1_id = int(params[0])
     task2_id = int(params[1])
 
-    if task1_id not in parent['tasks']:
+    if task1_id not in config['current']['tasks']:
         perror(f'Task {task1_id} is not a child of current task!')
         return
-    if task2_id not in parent['tasks']:
+    if task2_id not in config['current']['tasks']:
         perror(f'Task {task2_id} is not a child of current task!')
         return
     if not task_exists(task1_id):
@@ -396,12 +394,12 @@ def push(params, config):
         perror(f'Task {task2_id} does not exist!')
         return
 
-    parent['tasks'].remove(task1_id)
+    config['current']['tasks'].remove(task1_id)
 
     dest = read_task(task2_id)
     dest['tasks'].append(task1_id)
 
-    write_task(curr, parent)
+    write_task(current(config), config['current'])
     write_task(task2_id, dest)
     start_fixing_ancestors_state(config)
 
