@@ -508,6 +508,78 @@ def from_root(params, config):
         perror('Params are not ids!')
 
 
+def is_float(str):
+    try:
+        float(str)
+        return True
+    except ValueError:
+        return False
+
+
+def eval_cost(params, config):
+    if not params:
+        perror('Missing id and cost parameters!')
+        return
+    if len(params) == 1:
+        if current(config) == 0:
+            perror('Cannot evaluate cost of root task!')
+            return
+        if not is_float(params[0]):
+            perror(f'Parameter {params[0]} is not a floating point number!')
+            return
+        cost = float(params[0])
+        if cost == 0:
+            config['current'].pop('time_cost', None)
+        else:
+            config['current']['time_cost'] = cost
+        write_task(current(config), config['current'])
+    elif len(params) == 2:
+        if not params[0].isnumeric():
+            perror(f'Parameter {params[0]} is not an id!')
+            return
+        task_id = int(params[0])
+        if not task_exists(task_id):
+            perror(f'Task {task_id} does not exist!')
+            return
+        if task_id not in config['current']['tasks']:
+            perror(f'Task {task_id} is not a child of current task!')
+            return
+        if not is_float(params[1]):
+            perror(f'Parameter {params[1]} is not a floating point number!')
+            return
+        task = read_task(task_id)
+        cost = float(params[1])
+        if cost == 0:
+            task.pop('time_cost', None)
+        else:
+            task['time_cost'] = cost
+        write_task(task_id, task)
+    else:
+        perror('Wrong number of parameters!')
+        return
+
+
+def see_cost(params, config):
+    if not params:
+        task = config['current']
+    else:
+        error_msg = get_id_error_msg(params, config)
+        if error_msg is not None:
+            perror(error_msg)
+            return
+        task_id = id_from(params)
+        task = read_task(task_id)
+    print('Time cost:', sum_cost(task))
+
+
+def sum_cost(task):
+    sum = task.get('time_cost', 0)
+    for subtask_id in task['tasks']:
+        subtask = read_task(subtask_id)
+        sum += sum_cost(subtask)
+    return sum
+
+
 def do_cmd(cmd, params, config):
     if cmd == 'see':
         see(params, config)
@@ -556,6 +628,10 @@ def do_cmd(cmd, params, config):
     elif cmd == 'froot':
         from_root(params, config)
         see([], config)
+    elif cmd == 'eval':
+        eval_cost(params, config)
+    elif cmd == 'cost':
+        see_cost(params, config)
     else:
         print(emoji.emojize('Author: Igor Santarek :Poland:'))
         print('\nAvailable commands:')
