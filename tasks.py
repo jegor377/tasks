@@ -669,6 +669,7 @@ def do_cmd(cmd, params, config):
         print('froot [id1] [id2] [id3] ... - The same as `in` but you can specify whole path')
         print('eval [id] cost - Lets you evaluate cost of a task')
         print('cost [id] - Lets you see cumulative cost of a task')
+        print('sort - Prints tasks sorted in order in the tree')
 
         print('\n[id] - optional with braces. Without the number is required.')
 
