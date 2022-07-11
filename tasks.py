@@ -1,7 +1,7 @@
 import os
 import json
 import sys
-import readline
+# import readline
 import emoji
 import sys, tempfile
 from subprocess import call
@@ -584,12 +584,15 @@ def sum_cost(task):
     return sum
 
 
-def sort_tasks(task_id = 0):
+def sort_tasks(task_id = 0, history = []):
     task = read_task(task_id)
     if not task['tasks'] and task['state'] in [TODO_STATE, IN_PROGRESS_STATE]:
+        tmp = task['name']
+        task['name'] = '/'.join(history) + f'/{tmp}'
         print_task(task_id, task)
+        task['name'] = tmp
     for subtask_id in task['tasks']:
-        sort_tasks(subtask_id)
+        sort_tasks(subtask_id, history + [task['name']])
 
 
 def do_cmd(cmd, params, config):
