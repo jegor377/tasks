@@ -577,7 +577,9 @@ def see_cost(params, config):
 
 
 def sum_cost(task):
-    sum = task.get('time_cost', 0)
+    sum = 0
+    if 'time_cost' in task and not task['tasks']:
+        sum = task['time_cost']
     for subtask_id in task['tasks']:
         subtask = read_task(subtask_id)
         sum += sum_cost(subtask)
