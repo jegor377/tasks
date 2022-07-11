@@ -167,7 +167,7 @@ def new_task(params, config):
     config['current']['tasks'].append(task_id)
     write_task(task_id, task)
     write_task(current(config), config['current'])
-    start_fixing_ancestors_state(config)
+    start_state_propagation(config)
 
 
 def rm_task(params, config):
@@ -211,14 +211,14 @@ def set_task_state(task_id, state, config):
 
     task['state'] = state
     write_task(task_id, task)
-    start_fixing_ancestors_state(config)
+    start_state_propagation(config)
 
 
-def start_fixing_ancestors_state(config):
-    fix_ancestors_state(len(config['history']) - 1, config)
+def start_state_propagation(config):
+    propagate_state(len(config['history']) - 1, config)
 
 
-def fix_ancestors_state(history_id, config):
+def propagate_state(history_id, config):
     if history_id >= 0:
         task_id = config['history'][history_id]
         curr_state = DONE_STATE
@@ -233,7 +233,7 @@ def fix_ancestors_state(history_id, config):
                 curr_state = IN_PROGRESS_STATE
         task['state'] = curr_state
         write_task(task_id, task)
-        fix_ancestors_state(history_id - 1, config)
+        propagate_state(history_id - 1, config)
 
 
 def set_in_progr(params, config):
@@ -275,7 +275,7 @@ def reset(params, config):
     is_sure = input('Are you sure (Y/N)? ')
     if is_sure.lower() == 'y':
         reset_task(task_id)
-        start_fixing_ancestors_state(config)
+        start_state_propagation(config)
 
 
 def reset_task(task_id):
@@ -360,7 +360,7 @@ def pull(params, config):
     write_task(curr, parent)
     write_task(grand_parent_id, grand_parent)
 
-    start_fixing_ancestors_state(config)
+    start_state_propagation(config)
 
 
 def are_params_ids(params):
@@ -403,7 +403,7 @@ def push(params, config):
     write_task(task2_id, dest)
 
     go_in([str(task2_id)], config)
-    start_fixing_ancestors_state(config)
+    start_state_propagation(config)
     go_out(config)
 
 
