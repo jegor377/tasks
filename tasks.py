@@ -124,12 +124,16 @@ def see(params, config):
 
         for subtask_id in task['tasks']:
             subtask = read_task(subtask_id)
-            state_symbol = task_state_symbol(subtask['state'])
-            task_count = len(subtask['tasks'])
-            name = subtask['name']
-            print(emoji.emojize(f'#{subtask_id} {state_symbol} ({task_count}) {name}'))
+            print_task(subtask_id, subtask)
     else:
         perror(f'Task {task_id} does not exist!')
+
+
+def print_task(task_id, task):
+    state_symbol = task_state_symbol(task['state'])
+    task_count = len(task['tasks'])
+    name = task['name']
+    print(emoji.emojize(f'#{task_id} {state_symbol} ({task_count}) {name}'))
 
 
 def go_in(params, config):
@@ -580,6 +584,14 @@ def sum_cost(task):
     return sum
 
 
+def sort_tasks(task_id = 0):
+    task = read_task(task_id)
+    if not task['tasks'] and task['state'] in [TODO_STATE, IN_PROGRESS_STATE]:
+        print_task(task_id, task)
+    for subtask_id in task['tasks']:
+        sort_tasks(subtask_id)
+
+
 def do_cmd(cmd, params, config):
     if cmd == 'see':
         see(params, config)
@@ -632,6 +644,8 @@ def do_cmd(cmd, params, config):
         eval_cost(params, config)
     elif cmd == 'cost':
         see_cost(params, config)
+    elif cmd == 'sort':
+        sort_tasks()
     else:
         print(emoji.emojize('Author: Igor Santarek :Poland:'))
         print('\nAvailable commands:')
