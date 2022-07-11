@@ -1,7 +1,7 @@
 import os
 import json
 import sys
-# import readline
+import readline
 import emoji
 import sys, tempfile
 from subprocess import call
