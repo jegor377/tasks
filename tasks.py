@@ -401,7 +401,10 @@ def push(params, config):
 
     write_task(current(config), config['current'])
     write_task(task2_id, dest)
+
+    go_in([str(task2_id)], config)
     start_fixing_ancestors_state(config)
+    go_out(config)
 
 
 def todo():
