@@ -2,9 +2,11 @@ import os
 import json
 import sys
 import readline
+import time
 import emoji
 import sys, tempfile
 from subprocess import call
+import datetime
 
 
 TODO_STATE = 'todo'
@@ -652,6 +654,76 @@ def sort_tasks(params, config, task_id = 0, history = []):
         task['name'] = tmp
     for subtask_id in task['tasks']:
         sort_tasks(params, config, subtask_id, history + [task['name']])
+
+
+@command('bwork', 'id', 'Begins to record working time')
+def begin_work(params, config):
+    error_msg = get_id_error_msg(params, config)
+    if error_msg is not None:
+        perror(error_msg)
+        return
+    task_id = id_from(params)
+    task = read_task(task_id)
+    if task['tasks']:
+        perror('Cannot to begin recording working time on task that has subtasks!')
+        return
+    now = datetime.datetime.now()
+    if 'work_time_start' in task:
+        then = datetime.datetime.fromisoformat(task['work_time_start'])
+        task['worked_time'] = task.get('worked_time', 0) + (now - then).total_seconds()
+    task['work_time_start'] = datetime.datetime.now().isoformat()
+    write_task(task_id, task)
+
+
+@command('ework', 'id', 'Ends recording working time')
+def end_work(params, config):
+    error_msg = get_id_error_msg(params, config)
+    if error_msg is not None:
+        perror(error_msg)
+        return
+    task_id = id_from(params)
+    task = read_task(task_id)
+    if task['tasks']:
+        perror('Cannot to end recording working time on task that has subtasks!')
+        return
+    now = datetime.datetime.now()
+    if 'work_time_start' in task:
+        then = datetime.datetime.fromisoformat(task['work_time_start'])
+        task['worked_time'] = task.get('worked_time', 0) + (now - then).total_seconds()
+    task.pop('work_time_start', None)
+    write_task(task_id, task)
+
+
+@command('wtime', '[id]', 'See time spent in working on task')
+def working_time(params, config):
+    if params:
+        error_msg = get_id_error_msg(params, config)
+        if error_msg is not None:
+            perror(error_msg)
+            return
+        task_id = id_from(params)
+        task = read_task(task_id)
+    else:
+        task_id = current(config)
+        task = config['current']
+    if not task['tasks']:
+        working_time_val = task.get('worked_time', 0)
+    else:
+        working_time_val = sum_working_time(task_id)
+    formatted_time = time.strftime('%H:%M:%S', time.gmtime(working_time_val))
+    print(f'Time spent working: {formatted_time}')
+
+
+def sum_working_time(task_id):
+    task = read_task(task_id)
+
+    sum = 0
+    if task['tasks']:
+        for subtask_id in task['tasks']:
+            sum += sum_working_time(subtask_id)
+        return sum
+    else:
+        return task.get('worked_time', 0)
 
 
 if __name__ == '__main__':
