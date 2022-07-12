@@ -17,7 +17,25 @@ IN_PROGRESS_STATE_SYMBOL = ':wrench:'
 DONE_STATE_SYMBOL = ':check_mark:'
 
 TASKS_DIR = '.tasks'
-EDITOR = os.environ.get('EDITOR','vim')
+EDITOR = os.environ.get('EDITOR', 'vim')
+
+
+commands = {}
+
+
+def command(name, params, describtion):
+    def command_decorator(fnc):
+        if params is not None:
+            params_text = ' '.join(params) if isinstance(params, list) else params
+            help_msg = f'{name} {params_text} - {describtion}'
+        else:
+            help_msg = f'{name} - {describtion}'
+        commands[name] = {
+            'help_msg': emoji.emojize(help_msg),
+            'fnc': fnc
+        }
+        return fnc
+    return command_decorator
 
 
 def is_initialized():
@@ -97,19 +115,13 @@ def current(config):
 def id_from(params):
     return int(params[0])
 
-def get_id_error_msg(params, config) :
-    if not params:
-        return 'Missing task id parameter!'
-    if not is_task_id(params):
-        return 'Id parameter is wrong!'
-    task_id = id_from(params)
-    if not task_exists(task_id):
-        return f'Task {task_id} does not exist!'
-    if task_id not in config['current']['tasks']:
-        return f'Task {task_id} is not a child of current task!'
-    return None
+
+@command('exit', None, 'Exit program')
+def exit_cmd(params, config):
+    exit(0)
 
 
+@command('see', '[id]', 'List subtasks')
 def see(params, config):
     task_id = current(config)
     if params:
@@ -136,6 +148,20 @@ def print_task(task_id, task):
     print(emoji.emojize(f'#{task_id} {state_symbol} ({task_count}) {name}'))
 
 
+def get_id_error_msg(params, config) :
+    if not params:
+        return 'Missing task id parameter!'
+    if not is_task_id(params):
+        return 'Id parameter is wrong!'
+    task_id = id_from(params)
+    if not task_exists(task_id):
+        return f'Task {task_id} does not exist!'
+    if task_id not in config['current']['tasks']:
+        return f'Task {task_id} is not a child of current task!'
+    return None
+
+
+@command('in', 'id', 'Make subtask current task')
 def go_in(params, config):
     error_msg = get_id_error_msg(params, config)
     if error_msg is not None:
@@ -150,17 +176,21 @@ def go_in(params, config):
     config['current'] = task
     config['history'].append(task_id)
     config['name_history'].append(task['name'])
+    see([], config)
 
 
-def go_out(config):
+@command('out', None, 'Make parent current task')
+def go_out(params, config):
     if len(config['history']) > 1:
         config['history'].pop()
         config['name_history'].pop()
         config['current'] = read_task(current(config))
     else:
         perror('Cannot out of root task!')
+    see([], config)
 
 
+@command('new', 'name', 'Create new task')
 def new_task(params, config):
     if not params:
         perror('Missing name parameter!')
@@ -172,8 +202,10 @@ def new_task(params, config):
     write_task(task_id, task)
     write_task(current(config), config['current'])
     start_state_propagation(config)
+    see([], config)
 
 
+@command('rm', 'id', 'Remove task')
 def rm_task(params, config):
     error_msg = get_id_error_msg(params, config)
     if error_msg is not None:
@@ -191,6 +223,7 @@ def rm_task(params, config):
     if is_sure.lower() == 'y':
         rm_subtask(task_id, current(config))
         config['current']['tasks'].remove(task_id)
+    see([], config)
 
 
 def rm_subtask(subtask_id, parent_id):
@@ -240,6 +273,7 @@ def propagate_state(history_id, config):
         propagate_state(history_id - 1, config)
 
 
+@command('progr', 'id', f'Set task state to IN PROGRESS {IN_PROGRESS_STATE_SYMBOL}')
 def set_in_progr(params, config):
     error_msg = get_id_error_msg(params, config)
     if error_msg is not None:
@@ -251,8 +285,10 @@ def set_in_progr(params, config):
         return
     
     set_task_state(task_id, IN_PROGRESS_STATE, config)
+    see([], config)
 
 
+@command('done', 'id', f'Set task state to DONE {DONE_STATE_SYMBOL}')
 def set_done(params, config):
     error_msg = get_id_error_msg(params, config)
     if error_msg is not None:
@@ -264,8 +300,10 @@ def set_done(params, config):
         return
     
     set_task_state(task_id, DONE_STATE, config)
+    see([], config)
 
 
+@command('reset', 'id', f'Reset task and its children state to TODO {TODO_STATE_SYMBOL}')
 def reset(params, config):
     error_msg = get_id_error_msg(params, config)
     if error_msg is not None:
@@ -280,6 +318,7 @@ def reset(params, config):
     if is_sure.lower() == 'y':
         reset_task(task_id)
         start_state_propagation(config)
+    see([], config)
 
 
 def reset_task(task_id):
@@ -290,6 +329,7 @@ def reset_task(task_id):
     write_task(task_id, task)
 
 
+@command('descr', '[id]', 'Write description for task')
 def descr(params, config):
     task_id = current(config)
     if params:
@@ -315,6 +355,7 @@ def descr(params, config):
         write_task(task_id, task)
 
 
+@command('info', '[id]', 'Read description for task')
 def info(params, config):
     task_id = current(config)
     if params:
@@ -337,6 +378,7 @@ def print_info(task, divider=None):
         print(emoji.emojize(task['descr']))
 
 
+@command('pull', 'id', 'Pulls task from this task to outer task')
 def pull(params, config):
     curr = current(config)
     if curr == 0:
@@ -365,6 +407,7 @@ def pull(params, config):
     write_task(grand_parent_id, grand_parent)
 
     start_state_propagation(config)
+    see([], config)
 
 
 def are_params_ids(params):
@@ -374,6 +417,7 @@ def are_params_ids(params):
     return True
 
 
+@command('push', ['id1', 'id2'], 'Pushes task with id1 from current task to task with id2')
 def push(params, config):
     if len(params) != 2:
         perror('Wrong number of parameters!')
@@ -408,10 +452,12 @@ def push(params, config):
 
     go_in([str(task2_id)], config)
     start_state_propagation(config)
-    go_out(config)
+    go_out(params, config)
+    see([], config)
 
 
-def todo():
+@command('todo', None, f'Print first task todo ({TODO_STATE_SYMBOL} or {IN_PROGRESS_STATE_SYMBOL} state)')
+def todo(params, config):
     todo_id = -1
     id_history = [0]
     history = [read_task(0)]
@@ -441,6 +487,7 @@ def todo():
         print(emoji.emojize('There is no task todo... :grinning_face:'))
 
 
+@command('edit', 'id', 'Edit task name')
 def edit(params, config):
     if not params:
         perror('Missing id and new name parameters!')
@@ -461,8 +508,10 @@ def edit(params, config):
     task = read_task(task_id)
     task['name'] = ' '.join(params[1:])
     write_task(task_id, task)
+    see([], config)
 
 
+@command('up', 'id', 'Move task up :up_arrow:')
 def move_up(params, config):
     error_msg = get_id_error_msg(params, config)
     if error_msg is not None:
@@ -475,8 +524,10 @@ def move_up(params, config):
 
     config['current']['tasks'][curr_index], config['current']['tasks'][new_index] = config['current']['tasks'][new_index], config['current']['tasks'][curr_index]
     write_task(current(config), config['current'])
+    see([], config)
 
 
+@command('down', 'id', 'Move task down :down_arrow:')
 def move_down(params, config):
     error_msg = get_id_error_msg(params, config)
     if error_msg is not None:
@@ -489,8 +540,10 @@ def move_down(params, config):
 
     config['current']['tasks'][curr_index], config['current']['tasks'][new_index] = config['current']['tasks'][new_index], config['current']['tasks'][curr_index]
     write_task(current(config), config['current'])
+    see([], config)
 
 
+@command('froot', ['[id1]', '[id2]', '[id3]', '...'], 'The same as `in` but you can specify whole path')
 def from_root(params, config):
     init_config(config)
     if are_params_ids(params):
@@ -510,6 +563,7 @@ def from_root(params, config):
             config['name_history'].append(task['name'])
     else:
         perror('Params are not ids!')
+    see([], config)
 
 
 def is_float(str):
@@ -520,6 +574,7 @@ def is_float(str):
         return False
 
 
+@command('eval', ['[id]', 'cost'], 'Lets you evaluate cost of a task')
 def eval_cost(params, config):
     if not params:
         perror('Missing id and cost parameters!')
@@ -563,6 +618,7 @@ def eval_cost(params, config):
         return
 
 
+@command('cost', '[id]', 'Lets you see cumulative cost of a task')
 def see_cost(params, config):
     if not params:
         task = config['current']
@@ -586,7 +642,8 @@ def sum_cost(task):
     return sum
 
 
-def sort_tasks(task_id = 0, history = []):
+@command('sort', None, 'Prints tasks sorted in order in the tree')
+def sort_tasks(params, config, task_id = 0, history = []):
     task = read_task(task_id)
     if not task['tasks'] and task['state'] in [TODO_STATE, IN_PROGRESS_STATE]:
         tmp = task['name']
@@ -594,89 +651,8 @@ def sort_tasks(task_id = 0, history = []):
         print_task(task_id, task)
         task['name'] = tmp
     for subtask_id in task['tasks']:
-        sort_tasks(subtask_id, history + [task['name']])
+        sort_tasks(params, config, subtask_id, history + [task['name']])
 
-
-def do_cmd(cmd, params, config):
-    if cmd == 'see':
-        see(params, config)
-    elif cmd == 'in':
-        go_in(params, config)
-        see([], config)
-    elif cmd == 'out':
-        go_out(config)
-        see([], config)
-    elif cmd == 'new':
-        new_task(params, config)
-        see([], config)
-    elif cmd == 'rm':
-        rm_task(params, config)
-        see([], config)
-    elif cmd == 'progr':
-        set_in_progr(params, config)
-        see([], config)
-    elif cmd == 'done':
-        set_done(params, config)
-        see([], config)
-    elif cmd == 'reset':
-        reset(params, config)
-        see([], config)
-    elif cmd == 'descr':
-        descr(params, config)
-    elif cmd == 'info':
-        info(params, config)
-    elif cmd == 'pull':
-        pull(params, config)
-        see([], config)
-    elif cmd == 'push':
-        push(params, config)
-        see([], config)
-    elif cmd == 'todo':
-        todo()
-    elif cmd == 'edit':
-        edit(params, config)
-        see([], config)
-    elif cmd == 'up':
-        move_up(params, config)
-        see([], config)
-    elif cmd == 'down':
-        move_down(params, config)
-        see([], config)
-    elif cmd == 'froot':
-        from_root(params, config)
-        see([], config)
-    elif cmd == 'eval':
-        eval_cost(params, config)
-    elif cmd == 'cost':
-        see_cost(params, config)
-    elif cmd == 'sort':
-        sort_tasks()
-    else:
-        print(emoji.emojize('Author: Igor Santarek :Poland:'))
-        print('\nAvailable commands:')
-        print('exit - Exit program')
-        print('see [id] - List subtasks')
-        print('in id - Make subtask current task')
-        print('out - Make parent current task')
-        print('new name - Create new task')
-        print(emoji.emojize(f'progr id - Set task state to IN PROGRESS {IN_PROGRESS_STATE_SYMBOL}'))
-        print(emoji.emojize(f'done id - Set task state to DONE {DONE_STATE_SYMBOL}'))
-        print(emoji.emojize(f'reset id - Reset task and its children state to TODO {TODO_STATE_SYMBOL}'))
-        print('rm id - Remove task')
-        print('descr [id] - Write description for task')
-        print('info [id] - Read description for task')
-        print('pull id - Pulls task from this task to outer task')
-        print('push id1 id2 - Pushes task with id1 from current task to task with id2')
-        print('todo - Print first task todo (TODO or IN PROGRESS state)')
-        print('edit id - Edit task name')
-        print(emoji.emojize('up id - Move task up :up_arrow:'))
-        print(emoji.emojize('down id - Move task down :down_arrow:'))
-        print('froot [id1] [id2] [id3] ... - The same as `in` but you can specify whole path')
-        print('eval [id] cost - Lets you evaluate cost of a task')
-        print('cost [id] - Lets you see cumulative cost of a task')
-        print('sort - Prints tasks sorted in order in the tree')
-
-        print('\n[id] - optional with braces. Without the number is required.')
 
 if __name__ == '__main__':
     if len(sys.argv) == 2 and sys.argv[1] == 'init':
@@ -688,12 +664,16 @@ if __name__ == '__main__':
     init_config(config)
 
     see([], config)
-    
+
     while True:
         curr_path = '/'.join(config['name_history'])
         cmd, *params = input(emoji.emojize(f'{curr_path}> ')).split(' ')
 
-        if cmd == 'exit':
-            exit(0)
+        if cmd in commands:
+            commands[cmd]['fnc'](params, config)
         else:
-            do_cmd(cmd, params, config)
+            print(emoji.emojize('Author: Igor Santarek :Poland:'))
+            print('\nAvailable commands:')
+            for name in commands:
+                print(commands[name]['help_msg'])
+            print('\n[id] - optional with braces. Without the number is required.')
