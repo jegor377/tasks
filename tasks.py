@@ -164,7 +164,7 @@ def get_id_error_msg(params, config) :
 
 
 @command('in', 'id', 'Make subtask current task')
-def go_in(params, config):
+def go_in(params, config, print_see=True):
     error_msg = get_id_error_msg(params, config)
     if error_msg is not None:
         perror(error_msg)
@@ -178,18 +178,20 @@ def go_in(params, config):
     config['current'] = task
     config['history'].append(task_id)
     config['name_history'].append(task['name'])
-    see([], config)
+    if print_see:
+        see([], config)
 
 
 @command('out', None, 'Make parent current task')
-def go_out(params, config):
+def go_out(params, config, print_see=True):
     if len(config['history']) > 1:
         config['history'].pop()
         config['name_history'].pop()
         config['current'] = read_task(current(config))
     else:
         perror('Cannot out of root task!')
-    see([], config)
+    if print_see:
+        see([], config)
 
 
 @command('new', 'name', 'Create new task')
@@ -452,9 +454,9 @@ def push(params, config):
     write_task(current(config), config['current'])
     write_task(task2_id, dest)
 
-    go_in([str(task2_id)], config)
+    go_in([str(task2_id)], config, False)
     start_state_propagation(config)
-    go_out(params, config)
+    go_out(params, config, False)
     see([], config)
 
 
