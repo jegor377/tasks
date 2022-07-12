@@ -7,6 +7,7 @@ import emoji
 import sys, tempfile
 from subprocess import call
 import datetime
+import atexit
 
 
 TODO_STATE = 'todo'
@@ -53,8 +54,12 @@ def err_die(err):
     exit(1)
 
 
-def get_task_path(task_id) :
+def get_task_path(task_id):
     return os.path.join(TASKS_DIR, f'{task_id}.json')
+
+
+def get_all_tasks():
+    return [int(task_id.split('.')[0]) for task_id in os.listdir(TASKS_DIR)]
 
 
 def read_task(task_id):
@@ -669,10 +674,8 @@ def begin_work(params, config):
     if task['tasks']:
         perror('Cannot to begin recording working time on task that has subtasks!')
         return
-    now = datetime.datetime.now()
     if 'work_time_start' in task:
-        then = datetime.datetime.fromisoformat(task['work_time_start'])
-        task['worked_time'] = task.get('worked_time', 0) + (now - then).total_seconds()
+        task['worked_time'] = task.get('worked_time', 0) + get_last_work_time(task)
     task['work_time_start'] = datetime.datetime.now().isoformat()
     write_task(task_id, task)
 
@@ -688,12 +691,28 @@ def end_work(params, config):
     if task['tasks']:
         perror('Cannot to end recording working time on task that has subtasks!')
         return
+    end_work_task(task)
+    write_task(task_id, task)
+
+
+def end_work_task(task):
+    task['worked_time'] = task.get('worked_time', 0) + get_last_work_time(task)
+    task.pop('work_time_start', None)
+
+
+def get_last_work_time(task):
     now = datetime.datetime.now()
     if 'work_time_start' in task:
         then = datetime.datetime.fromisoformat(task['work_time_start'])
-        task['worked_time'] = task.get('worked_time', 0) + (now - then).total_seconds()
-    task.pop('work_time_start', None)
-    write_task(task_id, task)
+        return (now - then).total_seconds()
+    return 0
+
+
+def end_work_in_all_tasks():
+    for task_id in get_all_tasks():
+        task = read_task(task_id)
+        end_work_task(task)
+        write_task(task_id, task)
 
 
 @command('wtime', '[id]', 'See time spent in working on task')
@@ -709,7 +728,7 @@ def working_time(params, config):
         task_id = current(config)
         task = config['current']
     if not task['tasks']:
-        working_time_val = task.get('worked_time', 0)
+        working_time_val = task.get('worked_time', 0) + get_last_work_time(task)
     else:
         working_time_val = sum_working_time(task_id)
     formatted_time = time.strftime('%H:%M:%S', time.gmtime(working_time_val))
@@ -725,7 +744,7 @@ def sum_working_time(task_id):
             sum += sum_working_time(subtask_id)
         return sum
     else:
-        return task.get('worked_time', 0)
+        return task.get('worked_time', 0) + get_last_work_time(task)
 
 
 if __name__ == '__main__':
@@ -734,6 +753,7 @@ if __name__ == '__main__':
     if not is_initialized():
         err_die('Not initialized!\nTry: tasks init')
 
+    atexit.register(end_work_in_all_tasks)
     config = {}
     init_config(config)
 
