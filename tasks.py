@@ -1,7 +1,8 @@
 import os
 import json
 import sys
-import readline
+if os.name != 'nt':
+    import readline
 import time
 import emoji
 import sys, tempfile
@@ -264,19 +265,27 @@ def start_state_propagation(config):
     propagate_state(len(config['history']) - 1, config)
 
 
+def all_are_done(states):
+    for state in states:
+        if state != DONE_STATE:
+            return False
+    return True
+
+
 def propagate_state(history_id, config):
     if history_id >= 0:
         task_id = config['history'][history_id]
-        curr_state = DONE_STATE
         task = read_task(task_id)
+        states = []
         for subtask_id in task['tasks']:
             subtask = read_task(subtask_id)
-            if subtask['state'] == IN_PROGRESS_STATE:
-                curr_state = IN_PROGRESS_STATE
-            elif subtask['state'] == TODO_STATE and curr_state != IN_PROGRESS_STATE:
-                curr_state = TODO_STATE
-            elif subtask['state'] == DONE_STATE and curr_state != DONE_STATE:
-                curr_state = IN_PROGRESS_STATE
+            states.append(subtask['state'])
+        if all_are_done(states):
+            curr_state = DONE_STATE
+        elif DONE_STATE in states or IN_PROGRESS_STATE in states:
+            curr_state = IN_PROGRESS_STATE
+        else:
+            curr_state = TODO_STATE
         task['state'] = curr_state
         write_task(task_id, task)
         propagate_state(history_id - 1, config)
