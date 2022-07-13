@@ -711,8 +711,9 @@ def get_last_work_time(task):
 def end_work_in_all_tasks():
     for task_id in get_all_tasks():
         task = read_task(task_id)
-        end_work_task(task)
-        write_task(task_id, task)
+        if not task['tasks']:
+            end_work_task(task)
+            write_task(task_id, task)
 
 
 @command('wtime', '[id]', 'See time spent in working on task')
@@ -745,6 +746,21 @@ def sum_working_time(task_id):
         return sum
     else:
         return task.get('worked_time', 0) + get_last_work_time(task)
+
+
+@command('wreset', 'id', 'Reset worked time in task')
+def work_time_reset(params, config):
+    error_msg = get_id_error_msg(params, config)
+    if error_msg is not None:
+        perror(error_msg)
+        return
+    task_id = id_from(params)
+    task = read_task(task_id)
+    if task['tasks']:
+        perror('Cannot to worked time on task that has subtasks!')
+        return
+    task.pop('worked_time', None)
+    write_task(task_id, task)
 
 
 if __name__ == '__main__':
