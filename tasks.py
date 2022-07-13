@@ -674,8 +674,6 @@ def begin_work(params, config):
     if task['tasks']:
         perror('Cannot to begin recording working time on task that has subtasks!')
         return
-    if 'work_time_start' in task:
-        task['worked_time'] = task.get('worked_time', 0) + get_last_work_time(task)
     task['work_time_start'] = datetime.datetime.now().isoformat()
     write_task(task_id, task)
 
