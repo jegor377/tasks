@@ -739,8 +739,16 @@ def working_time(params, config):
         working_time_val = task.get('worked_time', 0) + get_last_work_time(task)
     else:
         working_time_val = sum_working_time(task_id)
-    formatted_time = time.strftime('%H:%M:%S', time.gmtime(working_time_val))
+    formatted_time = strftime(working_time_val) #time.strftime('%H:%M:%S', time.gmtime(working_time_val))
     print(f'Time spent working: {formatted_time}')
+
+
+def strftime(time_val):
+    seconds = str(int(time_val % 60.0)).rjust(2, '0')
+    minutes = str(int((time_val % 3600) / 60.0)).rjust(2, '0')
+    hours = str(int(time_val / 3600)).rjust(2, '0')
+
+    return f'{hours}:{minutes}:{seconds}'
 
 
 def sum_working_time(task_id):
